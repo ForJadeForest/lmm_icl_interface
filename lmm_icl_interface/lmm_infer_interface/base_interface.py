@@ -5,46 +5,32 @@ import requests
 import torch
 from loguru import logger
 from PIL import Image
+from torch import nn
+from ..utils import cast_type, get_autocast, is_url
+from lmm_icl_interface.prompt_control import LMMPromptManager
 
-from .utils import cast_type, get_autocast, is_url
-from .prompt_manager import PromptManager, LMMPromptManager
 
-
-class BaseInterface:
+class BaseInterface(nn.Module):
     def __init__(
         self,
         precision,
         device,
         input_ids_field_name: str,
-        prompt_manager: PromptManager,
+        prompt_manager: LMMPromptManager,
         instruction: str,
-        icd_join_char: str,
         label_field: str,
     ) -> None:
+        super().__init__()
         self.data_type = cast_type(precision)
         self.autocast_context = get_autocast(precision)
         self.device = device
         self.input_ids_field_name = input_ids_field_name
 
         self.prompt_manager = prompt_manager
-        self.icd_join_char = icd_join_char
         self.instruction = instruction
         self.pad_token_id = None
         self.tokenizer = None
         self.label_field = label_field
-
-    def gen_text_with_label(self, item, label=None):
-
-        return self.prompt_manager.gen_text_with_label(item, label)
-
-    def gen_text_without_label(self, item):
-        return self.prompt_manager.gen_text_without_label(item)
-
-    def concat_prompt(self, *args, **kwargs):
-        raise NotImplemented
-
-    def prepare_input(self, *args, **kwargs):
-        raise NotImplemented
 
     @torch.inference_mode()
     def get_cond_prob(
@@ -86,25 +72,56 @@ class BaseInterface:
 
             if mask_length is not None:
                 lens -= torch.tensor(mask_length, device=lens.device)
-            # logger.debug(f'{lens=}')
+
             ce_loss = loss.sum(-1) / lens
         return ce_loss
 
-    def get_input_token_num(self, input_tokens: str) -> int:
-        return len(self.tokenizer(input_tokens, add_special_tokens=False)["input_ids"])
-
-    def transfer_prompts(
+    def transfer_icl_prompts(
         self, batch_data_sample_list, is_last_for_generation=True, query_label=None
     ):
-        raise NotImplemented
+        """
+        transfer data sample list to text input.
+        Note: Only support one image and one text pair.
+        """
+        if not any(isinstance(i, list) for i in batch_data_sample_list):
+            batch_data_sample_list = [batch_data_sample_list]
+
+        prompts = []
+        for data_sample_list in batch_data_sample_list:
+            prompt = []
+            for data_sample in data_sample_list[:-1]:
+                prompt.extend(
+                    [
+                        data_sample[self.image_field],
+                        self.prompt_manager.gen_ice_text_with_label(
+                            data_sample, add_sep_token=True
+                        ),
+                    ]
+                )
+            prompt.append(data_sample_list[-1][self.image_field])
+            if is_last_for_generation:
+                prompt.append(
+                    self.prompt_manager.gen_query_text_without_label(
+                        data_sample_list[-1]
+                    )
+                )
+            else:
+                prompt.append(
+                    self.prompt_manager.gen_query_text_with_label(
+                        data_sample_list[-1], label=query_label
+                    )
+                )
+
+            prompts.append(prompt)
+        return prompts
 
     def generate(self, *args, **kwargs):
         with self.autocast_context:
             return self.model.generate(*args, **kwargs)
 
-    def __call__(self, model_input):
+    def __call__(self, *args, **kwargs):
         with self.autocast_context:
-            return self.model(**model_input)
+            return self.model(*args, **kwargs)
 
 
 class LMMInterface(BaseInterface):
@@ -115,18 +132,16 @@ class LMMInterface(BaseInterface):
         input_ids_field_name,
         prompt_manager: LMMPromptManager,
         instruction,
-        icd_join_char,
         label_field,
         image_field,
     ):
         super().__init__(
-            precision,
-            device,
-            input_ids_field_name,
-            prompt_manager,
-            instruction,
-            icd_join_char,
-            label_field,
+            precision=precision,
+            device=device,
+            input_ids_field_name=input_ids_field_name,
+            prompt_manager=prompt_manager,
+            instruction=instruction,
+            label_field=label_field,
         )
 
         self.image_field = image_field
@@ -150,44 +165,3 @@ class LMMInterface(BaseInterface):
                     return Image.open(obj)
                 except:
                     return None
-
-    def gen_text_with_label(self, item, label=None, add_image_token=False):
-
-        return self.prompt_manager.gen_text_with_label(item, label, add_image_token)
-
-    def gen_text_without_label(self, item, add_image_token=False):
-        return self.prompt_manager.gen_text_without_label(item, add_image_token)
-
-    def transfer_prompts(
-        self, batch_data_sample_list, is_last_for_generation=True, query_label=None
-    ):
-        """
-        transfer data sample list to text input.
-        Note: Only support one image and one text pair.
-        """
-        if not any(isinstance(i, list) for i in batch_data_sample_list):
-            batch_data_sample_list = [batch_data_sample_list]
-
-        prompts = []
-        for data_sample_list in batch_data_sample_list:
-            prompt = []
-            for data_sample in data_sample_list[:-1]:
-                prompt.extend(
-                    [
-                        data_sample[self.image_field],
-                        self.gen_text_with_label(data_sample),
-                    ]
-                )
-            prompt.append(data_sample_list[-1][self.image_field])
-            if is_last_for_generation:
-                prompt.append(self.gen_text_without_label(data_sample_list[-1]))
-            else:
-                prompt.append(
-                    self.gen_text_with_label(data_sample_list[-1], label=query_label)
-                )
-
-            prompts.append(prompt)
-        return prompts
-
-    def add_image_token(self, text):
-        raise NotImplemented

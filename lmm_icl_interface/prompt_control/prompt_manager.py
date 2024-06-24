@@ -1,57 +1,51 @@
 from .prompt_template import PromptTemplate
 
 
-class PromptManager:
+class LMMPromptManager:
     def __init__(
         self,
-        prompt_template,
+        ice_prompt_template,
         column_token_map,
         label_field,
+        sep_token="",
+        query_prompt_template=None,
     ):
-        if not isinstance(prompt_template, str):
-            prompt_template = dict(prompt_template)
-        self.pt = PromptTemplate(
-            prompt_template,
+        """
+        @ice_prompt_template:
+        """
+        if query_prompt_template is None:
+            query_prompt_template = ice_prompt_template
+
+        if not isinstance(ice_prompt_template, str):
+            ice_prompt_template = dict(ice_prompt_template)
+        if not isinstance(query_prompt_template, str):
+            query_prompt_template = dict(query_prompt_template)
+        self.ice_pt = PromptTemplate(
+            ice_prompt_template,
+            column_token_map=dict(column_token_map),
+        )
+        self.query_pt = PromptTemplate(
+            query_prompt_template,
             column_token_map=dict(column_token_map),
         )
         self.label_field = label_field
+        self.sep_token = sep_token
 
-    def gen_text_with_label(self, item, label=None):
-        if label is None and isinstance(self.pt.template, dict):
+    def gen_ice_text_with_label(self, item, label=None, add_sep_token=True):
+        if label is None and isinstance(self.ice_pt.template, dict):
             label = item[self.label_field]
-
-        return self.pt.generate_ice_item(item, label)
-
-    def gen_text_without_label(self, item):
-        return self.pt.generate_item(item, output_field=self.label_field)
-
-
-class LMMPromptManager(PromptManager):
-    def __init__(
-        self,
-        prompt_template,
-        column_token_map,
-        label_field,
-        image_prompt,
-    ):
-        super().__init__(
-            prompt_template,
-            column_token_map,
-            label_field,
-        )
-        self.image_prompt = image_prompt
-
-    def add_image_token(self, text):
-        return self.image_prompt + text
-
-    def gen_text_with_label(self, item, label=None, add_image_token=False):
-        prompt = super().gen_text_with_label(item, label)
-        if add_image_token:
-            return self.add_image_token(prompt)
+        prompt = self.ice_pt.generate_ice_item(item, label)
+        if add_sep_token:
+            prompt = prompt + self.sep_token
         return prompt
 
-    def gen_text_without_label(self, item, add_image_token=False):
-        prompt = super().gen_text_without_label(item)
-        if add_image_token:
-            return self.add_image_token(prompt)
+    def gen_query_text_with_label(self, item, label=None, add_sep_token=True):
+        if label is None and isinstance(self.query_pt.template, dict):
+            label = item[self.label_field]
+        prompt = self.query_pt.generate_ice_item(item, label)
+        if add_sep_token:
+            prompt = prompt + self.sep_token
         return prompt
+
+    def gen_query_text_without_label(self, item):
+        return self.query_pt.generate_item(item, output_field=self.label_field)

@@ -16,8 +16,13 @@ def is_url(string):
 
 class LMMPromptProcessor:
     def __init__(self, tokenizer, image_processor):
-        self.tokenzier = tokenizer
+        self.tokenizer = tokenizer
         self.image_processor = image_processor
+        self.input_ids_field = "input_ids"
+
+    def set_input_ids_field(self, name: str):
+        if isinstance(name, str):
+            self.input_ids_field = name
 
     def prepare_input(self, *args, **kwargs):
         pass
@@ -41,3 +46,6 @@ class LMMPromptProcessor:
                     return Image.open(obj)
                 except:
                     return None
+
+    def get_input_token_num(self, input_tokens: str) -> int:
+        return len(self.tokenizer(input_tokens, add_special_tokens=False)["input_ids"])

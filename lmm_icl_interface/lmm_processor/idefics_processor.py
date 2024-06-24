@@ -1,6 +1,5 @@
 from .base_processor import LMMPromptProcessor
 from transformers import IdeficsProcessor
-from transformers import Idefics2Processor
 
 
 class IdeficsPromptProcessor(LMMPromptProcessor):
@@ -10,7 +9,7 @@ class IdeficsPromptProcessor(LMMPromptProcessor):
 
     def prepare_input(
         self,
-        prompts,
+        batch_prompts,
         padding="longest",
         truncation=None,
         max_length=None,
@@ -21,7 +20,7 @@ class IdeficsPromptProcessor(LMMPromptProcessor):
         return_tensors="pt",
     ):
         return self.processor(
-            prompts,
+            batch_prompts,
             padding,
             truncation,
             max_length,
@@ -31,6 +30,3 @@ class IdeficsPromptProcessor(LMMPromptProcessor):
             debug,
             return_tensors,
         )
-
-    def get_input_token_num(self, input_tokens: str) -> int:
-        return len(self.tokenizer(input_tokens, add_special_tokens=False)["input_ids"])

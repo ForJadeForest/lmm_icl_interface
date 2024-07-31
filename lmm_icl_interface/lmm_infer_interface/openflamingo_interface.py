@@ -5,10 +5,6 @@ import open_clip
 import torch
 from huggingface_hub import hf_hub_download
 from loguru import logger
-from open_flamingo.src.factory import _infer_decoder_layers_attr_name
-from open_flamingo.src.flamingo import Flamingo
-from open_flamingo.src.flamingo_lm import FlamingoLMMixin
-from open_flamingo.src.utils import extend_instance
 from transformers import AutoModelForCausalLM, AutoTokenizer, BatchFeature
 
 from .base_interface import LMMInterface
@@ -32,6 +28,11 @@ class OpenFlamingoInterface(LMMInterface):
         load_from_local=False,
         init_device="cpu",
     ) -> None:
+        from open_flamingo.src.factory import _infer_decoder_layers_attr_name
+        from open_flamingo.src.flamingo import Flamingo
+        from open_flamingo.src.flamingo_lm import FlamingoLMMixin
+        from open_flamingo.src.utils import extend_instance
+
         super().__init__(
             precision=precision,
             device=device,

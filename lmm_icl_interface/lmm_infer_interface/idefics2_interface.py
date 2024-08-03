@@ -2,9 +2,7 @@ from typing import Optional
 
 import torch
 from loguru import logger
-from transformers import (
-    Idefics2ForConditionalGeneration,
-)
+
 
 from .base_interface import LMMInterface
 from lmm_icl_interface.lmm_processor import Idefics2PromptProcessor
@@ -21,6 +19,9 @@ class Idefics2Interface(LMMInterface):
         image_field,
         label_field,
     ):
+        from transformers import (
+        Idefics2ForConditionalGeneration,
+    )
         super().__init__(
             precision=precision,
             device=device,

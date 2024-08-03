@@ -1,5 +1,5 @@
 from .base_processor import LMMPromptProcessor
-from transformers import AutoProcessor, Idefics2Processor
+from transformers import AutoProcessor
 from ..utils import is_img
 
 

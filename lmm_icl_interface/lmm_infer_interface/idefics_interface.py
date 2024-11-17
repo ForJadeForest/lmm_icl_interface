@@ -13,7 +13,7 @@ class IdeficsInterface(LMMInterface):
         self,
         model_name_or_path,
         precision,
-        device,
+        model_device,
         prompt_manager,
         instruction,
         image_field,
@@ -21,7 +21,6 @@ class IdeficsInterface(LMMInterface):
     ):
         super().__init__(
             precision=precision,
-            device=device,
             input_ids_field_name="input_ids",
             prompt_manager=prompt_manager,
             instruction=instruction,

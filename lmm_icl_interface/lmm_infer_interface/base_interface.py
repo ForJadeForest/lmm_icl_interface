@@ -14,7 +14,6 @@ class BaseInterface(nn.Module):
     def __init__(
         self,
         precision,
-        device,
         input_ids_field_name: str,
         prompt_manager: LMMPromptManager,
         instruction: str,
@@ -23,7 +22,6 @@ class BaseInterface(nn.Module):
         super().__init__()
         self.data_type = cast_type(precision)
         self.autocast_context = get_autocast(precision)
-        self.device = device
         self.input_ids_field_name = input_ids_field_name
 
         self.prompt_manager = prompt_manager
@@ -31,6 +29,14 @@ class BaseInterface(nn.Module):
         self.pad_token_id = None
         self.tokenizer = None
         self.label_field = label_field
+
+    @property
+    def device(self):
+        if hasattr(self.model, "device"):
+            return self.model.device
+        else:
+            logger.warning("the model has not device parameters")
+            return None
 
     @torch.inference_mode()
     def get_cond_prob(
@@ -128,7 +134,6 @@ class LMMInterface(BaseInterface):
     def __init__(
         self,
         precision,
-        device,
         input_ids_field_name,
         prompt_manager: LMMPromptManager,
         instruction,
@@ -137,7 +142,6 @@ class LMMInterface(BaseInterface):
     ):
         super().__init__(
             precision=precision,
-            device=device,
             input_ids_field_name=input_ids_field_name,
             prompt_manager=prompt_manager,
             instruction=instruction,

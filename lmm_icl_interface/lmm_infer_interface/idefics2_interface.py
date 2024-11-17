@@ -13,7 +13,7 @@ class Idefics2Interface(LMMInterface):
         self,
         model_name_or_path,
         precision,
-        device,
+        model_device,
         prompt_manager,
         instruction,
         image_field,
@@ -24,7 +24,6 @@ class Idefics2Interface(LMMInterface):
     )
         super().__init__(
             precision=precision,
-            device=device,
             input_ids_field_name="input_ids",
             prompt_manager=prompt_manager,
             instruction=instruction,
@@ -35,7 +34,7 @@ class Idefics2Interface(LMMInterface):
         self.model = Idefics2ForConditionalGeneration.from_pretrained(
             model_name_or_path,
             torch_dtype=self.data_type,
-        ).to(self.device)
+        ).to(model_device)
         self.model.eval()
         self.tokenizer = self.processor.tokenizer
         self.tokenizer.padding_side = "left"
